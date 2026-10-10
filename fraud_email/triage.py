@@ -4,8 +4,8 @@ from .signals import inspect
 from .normalization import normalize
 
 def summarize(email: EmailInput, reasons: list[str]) -> list[str]:
-    body = re.sub(r"\\s+", " ", email.body).strip()
-    clauses = [s.strip() for s in re.split(r"(?<=[.!?])\\s+", body) if s.strip()]
+    body = re.sub(r"\s+", " ", email.body).strip()
+    clauses = [s.strip() for s in re.split(r"(?<=[.!?])\s+", body) if s.strip()]
     out = [f"Subject: {email.subject[:130] or '(none)'}"]
     out += [s[:220] for s in clauses[:2]]
     if reasons:
