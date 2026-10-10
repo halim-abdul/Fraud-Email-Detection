@@ -254,12 +254,19 @@
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item => ({json:{...item.json,summary_bullets:item.json.summary||[],summary_mode:'offline_rules',assistant_endpoint:'/assistant/summarize',note:'Optional AI summaries are available through the secured FastAPI assistant endpoint with explicit privacy opt-in; this n8n flow defaults to offline summaries.'}}));"
+        "method": "POST",
+        "url": "={{$env.FRAUD_SUMMARY_API_URL || 'http://host.docker.internal:8000/assistant/summarize'}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{JSON.stringify({message_id:$json.message_id,sender:$json.sender,recipient:$json.recipient,subject:$json.subject,body:$json.body,company_context:$json.company_context})}}",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "generate-short-summary",
       "name": "AI chatbot summarization API",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         2670,
         440
@@ -360,6 +367,19 @@
         3800,
         450
       ]
+    },
+    {
+      "id": "restore-triage",
+      "name": "Restore triage and short bullet summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2790,
+        440
+      ],
+      "parameters": {
+        "jsCode": "return items.map(item=>{const base=$('Email priority classification').first().json;return {json:{...base,summary_bullets:item.json.bullets||base.summary||[],summary_mode:item.json.mode||'offline_rules',assistant_mode:item.json.mode||'offline_rules',automatic_reply:false}};});"
+      }
     }
   ],
   "connections": {
@@ -601,6 +621,17 @@
       ]
     },
     "AI chatbot summarization API": {
+      "main": [
+        [
+          {
+            "node": "Restore triage and short bullet summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore triage and short bullet summary": {
       "main": [
         [
           {
