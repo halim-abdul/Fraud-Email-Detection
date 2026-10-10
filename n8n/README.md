@@ -1,0 +1,3 @@
+# n8n Gmail triage
+
+Import `email_triage.workflow.json` into n8n. Add your own Gmail OAuth credential, configure `FRAUD_TRIAGE_API_URL` and `COMPANY_CONTEXT`, start the FastAPI app, and **review node compatibility for your n8n version**. Keep workflow inactive until tested. This workflow receives email, creates a limited request, applies deterministic triage, and splits outputs into review-only queues. It deliberately has **no Gmail Send** action. Add your own protected, human-approved draft/queue and storage backend as appropriate. Avoid exposing n8n or the API publicly without TLS, credentials, rate limits, and access controls. n8n execution log retention may expose sensitive email data; minimize and redact it.
