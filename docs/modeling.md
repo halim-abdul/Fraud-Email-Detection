@@ -1,0 +1,3 @@
+# ML modeling
+
+Baseline: TF-IDF 1–2 grams + regularized logistic regression. Optional Naive Bayes notebook. Use a **real labeled, consented, deduplicated** corpus before making claims about precision/recall. Split train/test by campaign/time/sender to avoid leakage; report class-specific precision, recall, false positive rate, PR-AUC and calibration on held-out data. `scripts/train.py` prints **in-sample** training metrics only for a 5-row synthetic toy dataset; this is not a benchmark. Optional MLflow logging uses local tracking by default. Runtime FastAPI deliberately uses transparent rules until a separately validated model is integrated.
