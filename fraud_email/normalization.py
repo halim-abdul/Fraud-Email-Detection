@@ -6,5 +6,5 @@ CONFUSABLES = str.maketrans({"а":"a", "е":"e", "о":"o", "р":"p", "с":"c", "
 
 def normalize(text: str) -> str:
     value = unicodedata.normalize("NFKC", text or "").translate(CONFUSABLES)
-    value = re.sub(r"[\\u200b-\\u200f\\ufeff]", "", value)
-    return re.sub(r"\\s+", " ", value).strip().casefold()
+    value = re.sub(r"[\u200b-\u200f\ufeff]", "", value)
+    return re.sub(r"\s+", " ", value).strip().casefold()
