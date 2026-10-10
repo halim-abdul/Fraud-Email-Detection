@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fraud-email-detection"
-version = "0.1.0"
+version = "0.2.0"
 description = "Explainable, human-in-the-loop email fraud detection and prioritisation"
 requires-python = ">=3.10"
 dependencies = ["pydantic>=2.5", "pandas>=2", "scikit-learn>=1.3"]
@@ -14,6 +14,7 @@ api = ["fastapi>=0.110", "uvicorn>=0.25"]
 dashboard = ["streamlit>=1.35", "requests>=2.31", "plotly>=5"]
 train = ["mlflow>=2.10", "joblib>=1.3"]
 reports = ["xlsxwriter>=3.1"]
+llm = ["openai>=1.50"]
 dev = ["pytest>=8", "httpx>=0.27", "ruff>=0.5"]
 
 [tool.setuptools.packages.find]
