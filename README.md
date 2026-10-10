@@ -54,7 +54,7 @@ The project separates **suspiciousness (security risk)** from **business importa
                      │                             │                 │
                      │                            YES                NO
                      │                             ↓                 ↓
-                     │                         Draft Reply        No Reply
+                     │       (LLM + RAG guide) Draft Reply        No Reply
                      │                             ↓                 │
                      │                       HUMAN APPROVAL          │
                      │                             └────────┬────────┘
