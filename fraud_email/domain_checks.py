@@ -9,7 +9,7 @@ def sender_domain(sender: str) -> str:
 
 def url_indicators(body: str) -> list[str]:
     flags = []
-    for url in re.findall(r"https?://[^\\s<>]+", body, flags=re.I):
+    for url in re.findall(r"https?://[^\s<>]+", body, flags=re.I):
         host = (urlparse(url).hostname or "").lower()
         if host.startswith("xn--") or ".xn--" in host:
             flags.append("punycode_domain")
