@@ -1,0 +1,6 @@
+message_id,sender,recipient,subject,body,label
+SYN001,attacker@example.invalid,security@example.invalid,Data extortion,"We stole your data. Pay ETH or your data will be sold on the deep web.",fraud
+SYN002,client@example.invalid,team@example.invalid,Meeting request,"Please respond to the project meeting question.",legitimate
+SYN003,promos@example.invalid,team@example.invalid,Special offer,"Promotion. Unsubscribe anytime.",spam
+SYN004,winner@example.invalid,team@example.invalid,Lottery winner,"You won money. Send funds by wire transfer immediately.",fraud
+SYN005,office@example.invalid,team@example.invalid,Weekly update,"Agenda for Friday.",legitimate
