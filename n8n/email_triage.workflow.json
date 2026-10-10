@@ -1,5 +1,5 @@
 {
-  "name": "Fraud email triage - draft only",
+  "name": "Fraud Email Detection | Gmail to review, summary & reporting",
   "nodes": [
     {
       "parameters": {
@@ -13,32 +13,39 @@
         "simple": false,
         "filters": {}
       },
-      "id": "gmail",
+      "id": "gmail-trigger",
       "name": "Gmail Trigger",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1,
       "position": [
-        220,
-        300
-      ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
-          "name": "Gmail OAuth2"
-        }
-      }
+        200,
+        350
+      ]
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item => ({json:{message_id:item.json.id || '',sender:item.json.from || '',recipient:item.json.to || '',subject:item.json.subject || '',body:item.json.textPlain || item.json.snippet || '',company_context:$env.COMPANY_CONTEXT || 'operations'}}));"
+        "jsCode": "return items.map(item => { const e=item.json; const headers=e.payload?.headers || []; const h=n=>headers.find(v=>v.name?.toLowerCase()===n)?.value || ''; return {json:{message_id:e.id || e.messageId || '',sender:e.from || h('from'),recipient:e.to || h('to'),subject:e.subject || h('subject'),body:e.textPlain || e.text || e.snippet || '',company_context:$env.COMPANY_CONTEXT || 'operations'}};});"
       },
-      "id": "shape",
-      "name": "Normalize metadata",
+      "id": "extract-sender-receiver-subject-body",
+      "name": "Extract sender receiver subject body",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        440,
-        300
+        420,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => ({json:{...item.json,_original:{...item.json}}}));"
+      },
+      "id": "preserve-original-fields",
+      "name": "Preserve original fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        350
       ]
     },
     {
@@ -52,13 +59,26 @@
           "timeout": 30000
         }
       },
-      "id": "classify",
-      "name": "Triage via FastAPI",
+      "id": "fraud-phishing-analysis",
+      "name": "Fraud phishing analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        660,
-        300
+        860,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => { const j=item.json; const risk=j.risk_score ?? 0; const band=risk>=0.65?'high':risk>=0.25?'medium':'low'; const suspicious=['fraud','phishing','needs_review'].includes(j.label);return {json:{...j,suspicion_level:band,suspicious,security_review:suspicious}};});"
+      },
+      "id": "suspicion-low-medium-high",
+      "name": "Suspicion low medium high",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        350
       ]
     },
     {
@@ -72,17 +92,8 @@
           "combinator": "and",
           "conditions": [
             {
-              "id": "r",
-              "leftValue": "={{$json.reply_needed}}",
-              "rightValue": true,
-              "operator": {
-                "type": "boolean",
-                "operation": "true"
-              }
-            },
-            {
-              "id": "s",
-              "leftValue": "={{$json.review_required}}",
+              "id": "condition-suspicious-email",
+              "leftValue": "={{$json.suspicious === true}}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -92,39 +103,262 @@
           ]
         }
       },
-      "id": "gate",
-      "name": "Human review queue",
+      "id": "suspicious-email",
+      "name": "Suspicious email",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        880,
+        1300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,route:'security_review',automatic_reply:false,security_action:'human review - do not click links or send funds'}}));"
+      },
+      "id": "security-review",
+      "name": "Security review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,route:'other_email',automatic_reply:false}}));"
+      },
+      "id": "other-emails",
+      "name": "Other emails",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "condition-company-relevance-assessment",
+              "leftValue": "={{$json.relevant === true}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      },
+      "id": "company-relevance-assessment",
+      "name": "Company relevance assessment",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1750,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,company_relevance:'relevant',business_priority:$json.priority==='critical'?'urgent':$json.priority==='high'?'high':'normal'}}));"
+      },
+      "id": "email-priority-classification",
+      "name": "Email priority classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,company_relevance:'irrelevant_or_unknown',business_priority:'low',reply_needed:false}}));"
+      },
+      "id": "irrelevant-email-queue",
+      "name": "Irrelevant email queue",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        690
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "condition-urgent-business-email",
+              "leftValue": "={{$json.business_priority === 'urgent' || $json.business_priority === 'high'}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      },
+      "id": "urgent-business-email",
+      "name": "Urgent business email",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2210,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,route:'urgent_business_human_review',automatic_reply:false}}));"
+      },
+      "id": "urgent-email-review",
+      "name": "Urgent email review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        310
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,route:'legitimate_business_review',automatic_reply:false}}));"
+      },
+      "id": "legitimate-email-review",
+      "name": "Legitimate email review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,summary_bullets:$json.summary||[],summary_mode:'triage_rules'}}));"
+      },
+      "id": "generate-short-summary",
+      "name": "Generate short summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2670,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "condition-reply-necessary",
+              "leftValue": "={{$json.reply_needed === true && $json.label === 'legitimate'}}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ]
+        }
+      },
+      "id": "reply-necessary",
+      "name": "Reply necessary",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2890,
+        440
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,draft_reply:$json.proposed_reply||'Thank you for your email. Our team will review your request.',approval_status:'pending',automatic_reply:false}}));"
+      },
+      "id": "prepare-draft-reply",
+      "name": "Prepare draft reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
         300
       ]
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item=>({json:{...item.json,action:'review_draft_only',automatic_send:false}}));"
+        "jsCode": "return items.map(item=>({json:{...item.json,approval_status:'required',send_allowed:false,automatic_reply:false}}));"
       },
-      "id": "draft",
-      "name": "Queue suggested draft for approval",
+      "id": "human-approval-required",
+      "name": "Human approval required",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        200
+        3340,
+        300
       ]
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item=>({json:{...item.json,action:'log_and_review',automatic_send:false}}));"
+        "jsCode": "return items.map(item=>({json:{...item.json,approval_status:'no_reply_recommended',automatic_reply:false}}));"
       },
-      "id": "log",
-      "name": "Log no-auto-reply decision",
+      "id": "no-reply-needed",
+      "name": "No reply needed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1100,
-        410
+        3120,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>{const j=item.json; const summary=Array.isArray(j.summary_bullets)?j.summary_bullets.join(' | '):Array.isArray(j.summary)?j.summary.join(' | '):''; return {json:{message_id:j.message_id||'',sender:j.sender||'',recipient:j.recipient||'',subject:j.subject||'',label:j.label||'',suspicion_level:j.suspicion_level||'',priority:j.business_priority||j.priority||'',company_relevance:j.company_relevance||'',reply_needed:!!j.reply_needed,review_required:true,summary,route:j.route||'',approval_status:j.approval_status||'review_required',automatic_reply:false}};});"
+      },
+      "id": "excel-csv-report-rows",
+      "name": "Excel CSV report rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3570,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item=>({json:{...item.json,export_ready:true,note:'Connect an approved CSV/XLSX writer or protected storage destination; no credentials stored in Git.'}}));"
+      },
+      "id": "export-queue-handoff",
+      "name": "Export queue handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3800,
+        450
       ]
     }
   ],
@@ -133,47 +367,244 @@
       "main": [
         [
           {
-            "node": "Normalize metadata",
+            "node": "Extract sender receiver subject body",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Normalize metadata": {
+    "Extract sender receiver subject body": {
       "main": [
         [
           {
-            "node": "Triage via FastAPI",
+            "node": "Preserve original fields",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Triage via FastAPI": {
+    "Preserve original fields": {
       "main": [
         [
           {
-            "node": "Human review queue",
+            "node": "Fraud phishing analysis",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Human review queue": {
+    "Fraud phishing analysis": {
       "main": [
         [
           {
-            "node": "Queue suggested draft for approval",
+            "node": "Suspicion low medium high",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suspicion low medium high": {
+      "main": [
+        [
+          {
+            "node": "Suspicious email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suspicious email": {
+      "main": [
+        [
+          {
+            "node": "Security review",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Log no-auto-reply decision",
+            "node": "Other emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Security review": {
+      "main": [
+        [
+          {
+            "node": "Excel CSV report rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Other emails": {
+      "main": [
+        [
+          {
+            "node": "Company relevance assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Company relevance assessment": {
+      "main": [
+        [
+          {
+            "node": "Email priority classification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Irrelevant email queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email priority classification": {
+      "main": [
+        [
+          {
+            "node": "Urgent business email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Irrelevant email queue": {
+      "main": [
+        [
+          {
+            "node": "Excel CSV report rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent business email": {
+      "main": [
+        [
+          {
+            "node": "Urgent email review",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Legitimate email review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Urgent email review": {
+      "main": [
+        [
+          {
+            "node": "Generate short summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Legitimate email review": {
+      "main": [
+        [
+          {
+            "node": "Generate short summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate short summary": {
+      "main": [
+        [
+          {
+            "node": "Reply necessary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reply necessary": {
+      "main": [
+        [
+          {
+            "node": "Prepare draft reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No reply needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare draft reply": {
+      "main": [
+        [
+          {
+            "node": "Human approval required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Human approval required": {
+      "main": [
+        [
+          {
+            "node": "Excel CSV report rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No reply needed": {
+      "main": [
+        [
+          {
+            "node": "Excel CSV report rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excel CSV report rows": {
+      "main": [
+        [
+          {
+            "node": "Export queue handoff",
             "type": "main",
             "index": 0
           }
