@@ -70,7 +70,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item => { const j=item.json; const risk=j.risk_score ?? 0; const band=risk>=0.65?'high':risk>=0.25?'medium':'low'; const suspicious=['fraud','phishing','needs_review'].includes(j.label);return {json:{...j,suspicion_level:band,suspicious,security_review:suspicious}};});"
+        "jsCode": "return items.map(item => { const j=item.json; const source=$('Preserve original fields').first().json; const risk=j.risk_score ?? 0; const band=risk>=0.65?'high':risk>=0.25?'medium':'low'; const suspicious=['fraud','phishing','needs_review'].includes(j.label);return {json:{...source,...j,suspicion_level:band,suspicious,security_review:suspicious,reply_needed:suspicious?false:!!j.reply_needed}};});"
       },
       "id": "suspicion-low-medium-high",
       "name": "Suspicion low medium high",
@@ -171,7 +171,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item=>({json:{...item.json,company_relevance:'relevant',business_priority:$json.priority==='critical'?'urgent':$json.priority==='high'?'high':'normal'}}));"
+        "jsCode": "return items.map(item=>({json:{...item.json,company_relevance:'relevant',business_priority:$json.priority==='critical'?'urgent':$json.priority==='high'?'high':'normal',business_urgency_note:'Business urgency requires verification; security risk priority is not a business SLA.'}}));"
       },
       "id": "email-priority-classification",
       "name": "Email priority classification",
@@ -254,10 +254,10 @@
     },
     {
       "parameters": {
-        "jsCode": "return items.map(item=>({json:{...item.json,summary_bullets:$json.summary||[],summary_mode:'triage_rules'}}));"
+        "jsCode": "return items.map(item => ({json:{...item.json,summary_bullets:item.json.summary||[],summary_mode:'offline_rules',assistant_endpoint:'/assistant/summarize',note:'Optional AI summaries are available through the secured FastAPI assistant endpoint with explicit privacy opt-in; this n8n flow defaults to offline summaries.'}}));"
       },
       "id": "generate-short-summary",
-      "name": "Generate short summary",
+      "name": "AI chatbot summarization API",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -520,7 +520,7 @@
       "main": [
         [
           {
-            "node": "Generate short summary",
+            "node": "AI chatbot summarization API",
             "type": "main",
             "index": 0
           }
@@ -531,18 +531,7 @@
       "main": [
         [
           {
-            "node": "Generate short summary",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate short summary": {
-      "main": [
-        [
-          {
-            "node": "Reply necessary",
+            "node": "AI chatbot summarization API",
             "type": "main",
             "index": 0
           }
@@ -605,6 +594,17 @@
         [
           {
             "node": "Export queue handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI chatbot summarization API": {
+      "main": [
+        [
+          {
+            "node": "Reply necessary",
             "type": "main",
             "index": 0
           }
