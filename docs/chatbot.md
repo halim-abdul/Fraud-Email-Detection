@@ -1,0 +1,3 @@
+# AI-chatbot-style triage assistant
+
+The offline chatbot module answers analyst questions about risk, importance, business relevance, reply review, and short summaries. It is intentionally a deterministic baseline and **not an external LLM**. It refuses autonomous email actions. The separate `fraud_email/llm_policy.py` holds an optional restrictive system prompt for a future provider integration; integrating external LLM APIs requires company security and privacy approval, isolated prompts, tests against prompt injection and audit logs. Never give email text access to tool invocation or reply permissions.
